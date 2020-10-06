@@ -215,10 +215,10 @@ def main():
             testmodel.create_model()
             
             #Organize the images we want to retrieve from the test network run            
-            display_fetches_test, _ = helpers.display_images_fetches(dataTest.pathBatch, dataTest.inputBatch, dataTest.targetBatch, dataTest.gammaCorrectedInputsBatch, testmodel.output, a.nbTargets, a.logOutputAlbedos)
+            display_fetches_test, _ = helpers.display_images_fetches(dataTest.pathBatch, dataTest.inputBatch, dataTest.targetBatch, dataTest.gammaCorrectedInputsBatch, testmodel.output[0], a.nbTargets, a.logOutputAlbedos)
             
             # Compute the training network loss.
-            loss = losses.Loss(a.loss, model.output, targetsReshaped, CROP_SIZE, a.batch_size, tf.placeholder(tf.float64, shape=(), name="lr"), a.includeDiffuse)
+            loss = losses.Loss(a.loss, model.output[0], targetsReshaped, CROP_SIZE, a.batch_size, tf.placeholder(tf.float64, shape=(), name="lr"), a.includeDiffuse)
             loss.createLossGraph()
             
             #Create the training graph part
@@ -226,7 +226,7 @@ def main():
 
 
         #Organize the images we want to retrieve from the train network run
-        display_fetches, converted_images = helpers.display_images_fetches(data.pathBatch, data.inputBatch, data.targetBatch, data.gammaCorrectedInputsBatch, model.output, a.nbTargets, a.logOutputAlbedos)
+        display_fetches, converted_images = helpers.display_images_fetches(data.pathBatch, data.inputBatch, data.targetBatch, data.gammaCorrectedInputsBatch, model.output[0], a.nbTargets, a.logOutputAlbedos, encoder_output=model.output[1][-1])
         if a.mode == "train":
             #Register inputs, targets, renderings and loss in Tensorboard        
             helpers.registerTensorboard(data.pathBatch, converted_images, a.maxImages, a.nbTargets, loss.lossValue, a.batch_size, loss.targetsRenderings, loss.outputsRenderings)
@@ -298,6 +298,7 @@ def test(sess, data, max_steps, display_fetches, output_dir = a.output_dir):
             results = sess.run(display_fetches)
             
             #save the output images and add them to the list of outputed items
+            helpers.save_encoded_features(results['encoder'], output_dir)
             filesets.extend(helpers.save_images(results, output_dir, a.batch_size, a.nbTargets))
         except tf.errors.OutOfRangeError:
             print("testing fails in OutOfRangeError")

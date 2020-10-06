@@ -293,13 +293,13 @@ class Model:
             decoder_results, lastGlobalNet = self.__create_decoder(encoder_results, lastGlobalNet, output_channels)
             #output = tf.tanh(decoder_results)
             generator_output = decoder_results
-        return generator_output, lastGlobalNet
+        return generator_output, encoder_results, lastGlobalNet
 
     #create the full model
     def create_model(self):
         with tf.variable_scope("trainableModel", reuse=self.reuse_bool) as scope:
             #get all the generator outputs
-            generator_output, secondary_output = self.__create_generator(self.inputTensor, self.generatorOutputChannels, self.reuse_bool)
+            generator_output, encoder_output, secondary_output = self.__create_generator(self.inputTensor, self.generatorOutputChannels, self.reuse_bool)
             pooledGeneratorOutput = generator_output
 
             pooledSecondaryOutput = secondary_output
@@ -326,4 +326,4 @@ class Model:
             partialOutput = self.__createLastConvs(pooledGeneratorOutput, pooledSecondaryOutput, self.last_convolutions_channels, self.generatorOutputChannels)
             
             #Process the outputs to have 3 channels for all parameter maps.
-            self.output = helpers.deprocess_outputs(partialOutput)
+            self.output = helpers.deprocess_outputs(partialOutput), encoder_output

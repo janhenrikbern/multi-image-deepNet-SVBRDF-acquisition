@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 import math
 import acquisitionScene
+import pandas as pd
 #import renderer
 
 def preprocess(image):
@@ -439,7 +440,7 @@ def deprocess_images(inputs, targets, outputs, gammaCorrectedInputs, nbTargets, 
     return converted_inputs, converted_targets, converted_outputs, converted_gammaCorrectedInputs
 
 #Create the variables to be fetched from tensorflow
-def display_images_fetches(paths, inputs, targets, gammaCorrectedInputs, outputs, nbTargets, logAlbedo):
+def display_images_fetches(paths, inputs, targets, gammaCorrectedInputs, outputs, nbTargets, logAlbedo, encoder_output = None):
 
     converted_inputs, converted_targets, converted_outputs, converted_gammaCorrectedInputs  = deprocess_images(inputs, targets, outputs, gammaCorrectedInputs, nbTargets, logAlbedo)
     with tf.name_scope("encode_images"):
@@ -449,6 +450,7 @@ def display_images_fetches(paths, inputs, targets, gammaCorrectedInputs, outputs
             "targets": tf.map_fn(tf.image.encode_png, converted_targets, dtype=tf.string, name="target_pngs"),
             "outputs": tf.map_fn(tf.image.encode_png, converted_outputs, dtype=tf.string, name="output_pngs"),
             "gammaCorrectedInputs": tf.map_fn(tf.image.encode_png, converted_gammaCorrectedInputs, dtype=tf.string, name="gammaInput_pngs"),
+            "encoder": tf.map_fn(tf.identity, encoder_output, dtype=tf.float32, name="encoder_pngs")
         }
     images = [converted_inputs, converted_targets, converted_outputs]
     return display_fetches, images
@@ -600,3 +602,20 @@ def writeGlobalHTML(output_dir, filesets, nbTargets, mode, nbMaxInput):
 def print_trainable():
     for v in tf.trainable_variables():
         print(str(v.name) + ": " + str(v.get_shape()))
+
+# Save outputs of encoder layer
+def save_encoded_features(features, output_dir):
+    feature_dir = os.path.join(output_dir, "features")
+    if not os.path.exists(feature_dir):
+        os.makedirs(feature_dir)
+    
+    file = os.path.join(feature_dir, "features.csv")
+    extracted_features = np.array(features)
+    extracted_features = np.squeeze(extracted_features).reshape(1,-1)
+    if not os.path.exists(file):
+        df = pd.DataFrame(extracted_features)
+        df.to_csv(file)
+    else:
+        prev = pd.read_csv(file).to_numpy()
+        new = np.concatenate([prev[:,1:], extracted_features], axis=0)
+        pd.DataFrame(new).to_csv(file)
