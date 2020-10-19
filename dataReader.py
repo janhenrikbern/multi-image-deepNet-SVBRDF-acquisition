@@ -31,7 +31,7 @@ class dataset:
     useAugmentationInRenderings = True
 
     cropSize = 256
-    inputImageSize = 288
+    inputImageSize = 256
 
     maxJitteringPixels = int(np.floor(cropSize / 32.0))
     batchSize = 1
@@ -45,7 +45,7 @@ class dataset:
     mode = "train"
 
     #Some default constructor with most important parameters
-    def __init__(self, inputPath, imageType ="png", trainFolder = "train", testFolder = "test", inputNumbers = 10, maxInputToRead = 1, nbTargetsToRead = 4, cropSize=256, inputImageSize=288, batchSize=1, imageFormat = "png", which_direction = "AtoB", fixCrop = False, mixMaterials = True, fixImageNb = False, logInput = False, useAmbientLight = False, jitterRenderings = False, firstAsGuide = False, useAugmentationInRenderings = True, mode = "train"):
+    def __init__(self, inputPath, imageType ="jpg", trainFolder = "", testFolder = "", inputNumbers = 10, maxInputToRead = 1, nbTargetsToRead = 4, cropSize=256, inputImageSize=256, batchSize=1, imageFormat = "png", which_direction = "AtoB", fixCrop = False, mixMaterials = True, fixImageNb = False, logInput = False, useAmbientLight = False, jitterRenderings = False, firstAsGuide = False, useAugmentationInRenderings = True, mode = "train"):
         self.inputPath = inputPath
         self.imageType = imageType
         self.trainFolder = trainFolder
@@ -73,26 +73,33 @@ class dataset:
             raise ValueError("The input path doesn't exist :(!")
 
         if inputMode == "folder":
-            self.__loadFromDirectory(runMode, randomizeOrder)
+            self.__loadFromDirectory(runMode, randomizeOrder=randomizeOrder)
         if inputMode == "image":
             self.pathList = [self.inputPath]
 
     #Handles the reading of files from a directory
-    def __loadFromDirectory(self, runMode, randomizeOrder = True):
+    def __loadFromDirectory(self, runMode, randomizeOrder=False, input_dir=None):
         modeFolder = ""
         if runMode == "train":
             modeFolder = self.trainFolder
         elif runMode == "test":
             modeFolder = self.testFolder
 
-        path = os.path.join(self.inputPath, modeFolder)
-        fileList = sorted(glob.glob(path + "/*." + self.imageFormat))
-        if randomizeOrder:
-            shuffle(fileList)
+        input_dir = input_dir if input_dir else os.path.join(self.inputPath, modeFolder)
+        pathList = glob.glob(os.path.join(input_dir, "*." + self.imageType))
+        pathList = sorted(pathList);
+        print(pathList)
+        for path in os.listdir(input_dir):
+            path = os.path.join(input_dir, path)
+            if os.path.isdir(path):
+                pathList.extend(self.__loadFromDirectory(runMode, input_dir=path))
 
-        if not fileList:
+        if randomizeOrder:
+            shuffle(pathList)
+
+        if not pathList:
             raise ValueError("The list of filepaths is empty :( : " + path)
-        self.pathList = fileList
+        self.pathList = pathList
 
     #Handles the reading of a single image
     def __readImages(self,filename):
@@ -271,7 +278,7 @@ class dataset:
         self.pathBatch = paths_batch
 
     #This function if used to crate the iterator to go over the data and create the tensors of input and output
-    def populateFeedGraph(self, shuffle = True):
+    def populateFeedGraph(self, shuffle = False):
         with tf.name_scope("load_images"):
             #Create a tensor out of the list of paths
             filenamesTensor = tf.constant(self.pathList)
